@@ -1,0 +1,16 @@
+-R . MPSTCoq
+
+src/axioms.v
+src/fintype.v
+src/unscoped.v
+src/header_extensible.v
+src/expressions.v
+src/processes.v
+src/sessions.v
+src/beta.v
+src/global.v
+src/local.v
+src/projection.v
+src/typecheck.v
+
+

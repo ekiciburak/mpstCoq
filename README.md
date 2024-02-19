@@ -1,2 +1,2 @@
 # mpstCoq
-basics of mpst implemented in Coq
+basics of MPSTs implemented in Coq
