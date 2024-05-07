@@ -2,7 +2,7 @@
 
 Require Import String List Lia.
 
-(* From Equations Require Import Equations. *)
+From Equations Require Import Equations.
 Set Implicit Arguments.
 Unset Strict Implicit.
 

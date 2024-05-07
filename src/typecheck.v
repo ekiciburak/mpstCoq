@@ -27,7 +27,7 @@ Fixpoint lookupT (m: ctx) (s: fin): option local :=
     | consS s' t' xs => lookupT xs s
   end.
 
-Fixpoint typ_expr (m: ctx) (e: expr): option gsort :=
+(* Fixpoint typ_expr (m: ctx) (e: expr): option gsort :=
   match e with
     | e_var x   => lookupS m x
     | e_val v   => 
@@ -111,7 +111,7 @@ Fixpoint typ_proc (m: ctx) (p: process): option local :=
         | None    => None 
       end
   end.
-
+ *)
 Fixpoint step_global_peq (l: list (prod (prod label gsort) global)) (lbl: label): option global :=
   match l with
     | nil                          => None

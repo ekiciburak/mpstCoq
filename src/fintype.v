@@ -3,7 +3,7 @@
 
 Version: December 11, 2019.
 *)
-Require Import MPSTCoq.src.axioms.
+From MPSTCoq.src Require Import axioms.
 Set Implicit Arguments.
 Unset Strict Implicit.
 

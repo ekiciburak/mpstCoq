@@ -3,7 +3,7 @@
 Version: December 11, 2019.
  *)
 
-From MPSTCoq Require Export src.axioms.
+From MPSTCoq.src Require Export axioms.
 
 Definition ap {X Y} (f : X -> Y) {x y : X} (p : x = y) : f x = f y :=
   match p with eq_refl => eq_refl end.
@@ -28,6 +28,14 @@ Definition scons {X: Type} (x : X) (xi : nat -> X) :=
             |0 => x
             |S n => xi n
            end.
+
+Definition scons2 {X: Type} (x : X) (xi : nat -> nat -> X) :=
+  fun m => fun n => match n with
+            |0 => x
+            |S n => xi m n
+           end.
+
+Notation "s1 s2 ..: sigma" := (scons2 s1 s2 sigma) (at level 70).
 
 Notation "s .: sigma" := (scons s sigma) (at level 70).
 
@@ -91,9 +99,9 @@ Class Subst4 (X1 X2 X3 X4: Type) (Y Z: Type) :=
 Class Subst5 (X1 X2 X3 X4 X5 : Type) (Y Z: Type) :=
   subst5 : X1 -> X2 -> X3 -> X4 -> X5  -> Y  -> Z.
 
-Notation "s [ sigma ]" := (subst1 sigma s) (at level 7, left associativity, format "s '/' [ sigma ]") : subst_scope.
+Notation "s |-- sigma --|" := (subst1 sigma s) (at level 7, left associativity, format "s '/' |-- sigma --|") : subst_scope.
 
-Notation "s [ sigma ; tau ]" := (subst2 sigma tau s) (at level 7, left associativity, format "s '/' [ sigma ; '/'  tau ]") : subst_scope.
+Notation "s ||-- sigma ; tau --||" := (subst2 sigma tau s) (at level 7, left associativity, format "s '/' ||-- sigma ; '/'  tau --||") : subst_scope.
 
 
 (** *** Type Class for Variables *)
@@ -191,7 +199,7 @@ Ltac fsimplc :=
 Tactic Notation "fsimpl" "in" "*" :=
   fsimpl; fsimplc.
 
-Notation "s , sigma" := (scons s sigma) (at level 60, format "s ,  sigma", right associativity) : subst_scope.
+Notation "s |, sigma" := (scons s sigma) (at level 60, format "s |,  sigma", right associativity) : subst_scope.
 
 Notation "s '..'" := (scons s ids) (at level 1, format "s ..") : subst_scope.
 #[export] Instance idsRen : Var nat nat := id.

@@ -1,6 +1,8 @@
-From MPSTCoq Require Export src.unscoped src.expressions.
-Require Import List String Relations.
+From MPSTCoq Require Import src.unscoped src.expressions.
+Require Import List String Relations ZArith.
 Open Scope string_scope.
+Import ListNotations.
+Open Scope list_scope.
 
 Notation label := string.
 Notation part  := string.
@@ -11,7 +13,7 @@ Inductive process  : Type :=
   | p_var : ( fin ) -> process 
   | p_inact : process 
   | p_send : ( part   ) -> ( label   ) -> ( expr   ) -> ( process   ) -> process 
-  | p_recv : ( part   ) -> ( list (prod (prod label expr) process) ) -> process 
+  | p_recv : ( part   ) -> ( list (prod (prod label sort) process) ) -> process 
   | p_ite : ( expr   ) -> ( process   ) -> ( process   ) -> process 
   | p_rec : ( process   ) -> process .
 
@@ -23,7 +25,7 @@ Proof. congruence. Qed.
 Lemma congr_p_send  { s0 : part   } { s1 : label   } { s2 : expr   } { s3 : process   } { t0 : part   } { t1 : label   } { t2 : expr   } { t3 : process   } (H1 : s0 = t0) (H2 : s1 = t1) (H3 : s2 = t2) (H4 : s3 = t3) : p_send  s0 s1 s2 s3 = p_send  t0 t1 t2 t3 .
 Proof. congruence. Qed.
 
-Lemma congr_p_recv  { s0 : part   } { s1 : list (prod (prod (label  ) (expr  )) (process)) } { t0 : part   } { t1 : list (prod (prod (label  ) (expr  )) (process)) } (H1 : s0 = t0) (H2 : s1 = t1) : p_recv  s0 s1 = p_recv  t0 t1 .
+Lemma congr_p_recv  { s0 : part   } { s1 : list (prod (prod (label  ) (sort  )) (process)) } { t0 : part   } { t1 : list (prod (prod (label  ) (sort  )) (process)) } (H1 : s0 = t0) (H2 : s1 = t1) : p_recv  s0 s1 = p_recv  t0 t1 .
 Proof. congruence. Qed.
 
 Lemma congr_p_ite  { s0 : expr   } { s1 : process   } { s2 : process   } { t0 : expr   } { t1 : process   } { t2 : process   } (H1 : s0 = t0) (H2 : s1 = t1) (H3 : s2 = t2) : p_ite  s0 s1 s2 = p_ite  t0 t1 t2 .
@@ -46,7 +48,7 @@ Fixpoint ren_process   (xiprocess : ( fin ) -> fin) (s : process ) : process  :=
     end.
 
 Definition up_process_process   (sigma : ( fin ) -> process ) : ( fin ) -> process  :=
-  (scons) ((p_var ) (var_zero)) ((funcomp) (ren_process (shift)) sigma).
+  (scons) ((p_var ) (var_zero)) ((funcomp) (ren_process (unscoped.shift)) sigma).
 
 Fixpoint subst_process   (sigmaprocess : ( fin ) -> process ) (s : process ) : process  :=
     match s return process  with
@@ -82,20 +84,35 @@ Fixpoint unfold_rec (s: process): process :=
 Inductive p_cong: relation process :=
   | p_cong_rec: forall p, p_cong (p_rec p) (unfold_rec (p_rec p)).
 
-Fixpoint subst_expr_proc (pr: process) (x: string) (s: expr): process :=
-  match pr with
-    | p_send a l e p => p_send a l (subst_expr e x s) (subst_expr_proc p x s)
-    | p_recv a l     =>
-      let fix next l :=
-        match l with
-          | nil                       => nil
-          | (pair (pair u e) p) :: xs => (pair (pair u (subst_expr e x s)) (subst_expr_proc p x s)) :: next xs
-        end
-      in p_recv a (next l)
-    | p_ite e p1 p2  => p_ite (subst_expr e x s) (subst_expr_proc p1 x s) (subst_expr_proc p2 x s)
-    | p_rec p        => p_rec (subst_expr_proc p x s)
-    | _              => pr
+Definition subst_expr_proc (p: process) (l: label) (e: expr): process :=
+  match p with
+    | p_recv s0 s1  => 
+      let fix next lst :=
+      match lst with
+        | (lbl,_,P)::xs => 
+          if String.eqb lbl l then
+          let fix rec P :=
+            match P with
+              | p_send pt l e1 P => p_send pt l (subst_expr (e .: e_var) e1) (rec P)
+              | p_ite e1 P Q     => p_ite (subst_expr (e .: e_var) e1) (rec P) (rec Q)
+              | p_recv s2 s3     => p_recv s2 ((list_map (prod_map (prod_map (fun x => x) (fun x => x)) (rec))) s3)
+              | p_rec P          => p_rec (rec P)
+              | _                => P
+            end
+          in rec P
+          else next xs
+       | _                         => p
+     end
+     in next s1
+    | _                            => p
   end.
+
+(*
+Definition pp := p_recv "A" [("l1", sint,
+                                (p_recv "B" [("l2", sint, 
+                                             (p_send "A" "l3" (e_gt (e_var 0) (e_var 0)) p_inact))]))].
+
+Eval compute in (subst_expr_proc pp "l1" (e_val (vint (10%Z)))). *)
 
 (* Let pp := p_rec (p_send "p" "l" (e_var "x") (p_var 0)).
 Let pp2 := Eval simpl in unfold_rec pp.
@@ -107,7 +124,7 @@ Compute unfold_rec pp3.  *)
 
 Definition upId_process_process  (sigma : ( fin ) -> process ) (Eq : forall x, sigma x = (p_var ) x) : forall x, (up_process_process sigma) x = (p_var ) x :=
   fun n => match n with
-  | S fin_n => (ap) (ren_process (shift)) (Eq fin_n)
+  | S fin_n => (ap) (ren_process (unscoped.shift)) (Eq fin_n)
   | 0  => eq_refl
   end.
 
@@ -123,7 +140,7 @@ Fixpoint idSubst_process  (sigmaprocess : ( fin ) -> process ) (Eqprocess : fora
 
 Definition upExtRen_process_process   (xi : ( fin ) -> fin) (zeta : ( fin ) -> fin) (Eq : forall x, xi x = zeta x) : forall x, (upRen_process_process xi) x = (upRen_process_process zeta) x :=
   fun n => match n with
-  | S fin_n => (ap) (shift) (Eq fin_n)
+  | S fin_n => (ap) (unscoped.shift) (Eq fin_n)
   | 0  => eq_refl
   end.
 
@@ -139,7 +156,7 @@ Fixpoint extRen_process   (xiprocess : ( fin ) -> fin) (zetaprocess : ( fin ) ->
 
 Definition upExt_process_process   (sigma : ( fin ) -> process ) (tau : ( fin ) -> process ) (Eq : forall x, sigma x = tau x) : forall x, (up_process_process sigma) x = (up_process_process tau) x :=
   fun n => match n with
-  | S fin_n => (ap) (ren_process (shift)) (Eq fin_n)
+  | S fin_n => (ap) (ren_process (unscoped.shift)) (Eq fin_n)
   | 0  => eq_refl
   end.
 
@@ -168,7 +185,7 @@ Fixpoint compRenRen_process    (xiprocess : ( fin ) -> fin) (zetaprocess : ( fin
 
 Definition up_ren_subst_process_process    (xi : ( fin ) -> fin) (tau : ( fin ) -> process ) (theta : ( fin ) -> process ) (Eq : forall x, ((funcomp) tau xi) x = theta x) : forall x, ((funcomp) (up_process_process tau) (upRen_process_process xi)) x = (up_process_process theta) x :=
   fun n => match n with
-  | S fin_n => (ap) (ren_process (shift)) (Eq fin_n)
+  | S fin_n => (ap) (ren_process (unscoped.shift)) (Eq fin_n)
   | 0  => eq_refl
   end.
 
@@ -184,7 +201,7 @@ Fixpoint compRenSubst_process    (xiprocess : ( fin ) -> fin) (tauprocess : ( fi
 
 Definition up_subst_ren_process_process    (sigma : ( fin ) -> process ) (zetaprocess : ( fin ) -> fin) (theta : ( fin ) -> process ) (Eq : forall x, ((funcomp) (ren_process zetaprocess) sigma) x = theta x) : forall x, ((funcomp) (ren_process (upRen_process_process zetaprocess)) (up_process_process sigma)) x = (up_process_process theta) x :=
   fun n => match n with
-  | S fin_n => (eq_trans) (compRenRen_process (shift) (upRen_process_process zetaprocess) ((funcomp) (shift) zetaprocess) (fun x => eq_refl) (sigma fin_n)) ((eq_trans) ((eq_sym) (compRenRen_process zetaprocess (shift) ((funcomp) (shift) zetaprocess) (fun x => eq_refl) (sigma fin_n))) ((ap) (ren_process (shift)) (Eq fin_n)))
+  | S fin_n => (eq_trans) (compRenRen_process (unscoped.shift) (upRen_process_process zetaprocess) ((funcomp) (unscoped.shift) zetaprocess) (fun x => eq_refl) (sigma fin_n)) ((eq_trans) ((eq_sym) (compRenRen_process zetaprocess (unscoped.shift) ((funcomp) (unscoped.shift) zetaprocess) (fun x => eq_refl) (sigma fin_n))) ((ap) (ren_process (unscoped.shift)) (Eq fin_n)))
   | 0  => eq_refl
   end.
 
@@ -200,7 +217,7 @@ Fixpoint compSubstRen_process    (sigmaprocess : ( fin ) -> process ) (zetaproce
 
 Definition up_subst_subst_process_process    (sigma : ( fin ) -> process ) (tauprocess : ( fin ) -> process ) (theta : ( fin ) -> process ) (Eq : forall x, ((funcomp) (subst_process tauprocess) sigma) x = theta x) : forall x, ((funcomp) (subst_process (up_process_process tauprocess)) (up_process_process sigma)) x = (up_process_process theta) x :=
   fun n => match n with
-  | S fin_n => (eq_trans) (compRenSubst_process (shift) (up_process_process tauprocess) ((funcomp) (up_process_process tauprocess) (shift)) (fun x => eq_refl) (sigma fin_n)) ((eq_trans) ((eq_sym) (compSubstRen_process tauprocess (shift) ((funcomp) (ren_process (shift)) tauprocess) (fun x => eq_refl) (sigma fin_n))) ((ap) (ren_process (shift)) (Eq fin_n)))
+  | S fin_n => (eq_trans) (compRenSubst_process (unscoped.shift) (up_process_process tauprocess) ((funcomp) (up_process_process tauprocess) (unscoped.shift)) (fun x => eq_refl) (sigma fin_n)) ((eq_trans) ((eq_sym) (compSubstRen_process tauprocess (unscoped.shift) ((funcomp) (ren_process (unscoped.shift)) tauprocess) (fun x => eq_refl) (sigma fin_n))) ((ap) (ren_process (unscoped.shift)) (Eq fin_n)))
   | 0  => eq_refl
   end.
 
@@ -216,7 +233,7 @@ Fixpoint compSubstSubst_process    (sigmaprocess : ( fin ) -> process ) (tauproc
 
 Definition rinstInst_up_process_process   (xi : ( fin ) -> fin) (sigma : ( fin ) -> process ) (Eq : forall x, ((funcomp) (p_var ) xi) x = sigma x) : forall x, ((funcomp) (p_var ) (upRen_process_process xi)) x = (up_process_process sigma) x :=
   fun n => match n with
-  | S fin_n => (ap) (ren_process (shift)) (Eq fin_n)
+  | S fin_n => (ap) (ren_process (unscoped.shift)) (Eq fin_n)
   | 0  => eq_refl
   end.
 
