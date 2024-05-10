@@ -3,7 +3,7 @@ Require Import List String Datatypes Lia.
 Import ListNotations.
 Open Scope list_scope.
 
-Fixpoint g_part_list_h (g: global) (acc: list gpart): list gpart :=
+Fixpoint g_part_list_h (g: global) (acc: list part): list part :=
   match g with
     | g_end        => acc
     | g_var n      => acc
@@ -17,7 +17,7 @@ Fixpoint g_part_list_h (g: global) (acc: list gpart): list gpart :=
       in (p :: q :: (List.filter (fun a => andb (negb (eqb a p)) (negb (eqb a q))) (next l)))
   end.
 
-Definition g_part_list (g: global): list gpart := g_part_list_h g nil.
+Definition g_part_list (g: global): list part := g_part_list_h g nil.
 
 (* Let gt := g_rec (g_send "p" "q" (cons (pair (pair "x" gint) (g_var 0)) nil)).
 Compute g_part_list gt.
@@ -29,22 +29,22 @@ Print gt3.
 Compute g_part_list gt3.
  *)
 
-Fixpoint is_list_eqH (l: list (llabel*gsort*local)) (acc: (llabel*gsort*local)): bool :=
+Fixpoint is_list_eqH (l: list (label*sort*local)) (acc: (label*sort*local)): bool :=
   match pair l acc with
     | pair ((pair (pair lbl gs) lt) :: xs) (pair (pair lbl2 gs2) lt2) =>
-       if (andb (andb (eqb lbl lbl2) (gsort_eq gs gs2)) (local_eq lt lt2))
+       if (andb (andb (eqb lbl lbl2) (sort_eq gs gs2)) (local_eq lt lt2))
        then is_list_eqH xs acc
        else false
     | pair nil _ => true
   end.
 
-Definition is_list_eq (l: list (llabel*gsort*local)): bool :=
+Definition is_list_eq (l: list (label*sort*local)): bool :=
   match l with
     | (pair (pair lbl gs) lt) :: xs => is_list_eqH xs (pair (pair lbl gs) lt)
     | nil                           => true
   end.
 
-Definition is_part_in (g: global) (p: gpart): bool :=
+Definition is_part_in (g: global) (p: part): bool :=
   let l := g_part_list g in
   let fix next l :=
     match l with
@@ -63,7 +63,7 @@ Definition merge (t1: local) (t2: local): option local :=
       | _                                => None
     end.
 
-Fixpoint merge_listH (l: list (llabel*gsort*local)) (t: local): option local :=
+Fixpoint merge_listH (l: list (label*sort*local)) (t: local): option local :=
   match l with
     | nil                       => Some t
     | pair (pair lbl s) x :: xs => 
@@ -74,7 +74,7 @@ Fixpoint merge_listH (l: list (llabel*gsort*local)) (t: local): option local :=
       end
   end.
 
-Definition merge_list (l: list (llabel*gsort*local)): option local :=
+Definition merge_list (l: list (label*sort*local)): option local :=
   match l with
     | nil                       => None
     | pair (pair lbl s) x :: xs => merge_listH xs x
@@ -86,17 +86,17 @@ Fixpoint map_snd {A B C: Type} (f: B -> C) (l: list (prod A B)): list (prod A C)
     | pair a b :: xs => pair a (f b) :: map_snd f xs
   end.
 
-Fixpoint remove_opH (l: list (prod (prod llabel gsort) (option local))) (acc: list (prod (prod llabel gsort) local)): 
-  list (prod (prod llabel gsort) local) :=
+Fixpoint remove_opH (l: list (prod (prod label sort) (option local))) (acc: list (prod (prod label sort) local)): 
+  list (prod (prod label sort) local) :=
   match l with
     | nil                              => acc
     | pair (pair lbl s) (Some x) :: xs => remove_opH xs (acc ++ [(pair (pair lbl s) x)])
     | pair (pair lbl s) None :: xs     => remove_opH xs acc
   end.
 
-Definition remove_op (l: list (prod (prod llabel gsort) (option local))): list (prod (prod llabel gsort) local) := remove_opH l nil.
+Definition remove_op (l: list (prod (prod label sort) (option local))): list (prod (prod label sort) local) := remove_opH l nil.
 
-Fixpoint projection (g: global) (r: gpart): option local :=
+Fixpoint projection (g: global) (r: part): option local :=
   match g with
     | g_end        => Some l_end
     | g_var n      => Some (l_var n)
@@ -150,7 +150,7 @@ Fixpoint projection (g: global) (r: gpart): option local :=
                   else Some l_end
   end.
 
-Fixpoint next l r: list (prod (prod llabel gsort) local)  :=
+Fixpoint next l r: list (prod (prod label sort) local)  :=
   match l with
     | pair (pair lbl srt) g1 :: xs => 
       let pg1 := projection g1 r in
@@ -177,13 +177,13 @@ Proof. intro l.
          rewrite (IHl gt lt). easy. easy.
 Qed.
 
-Fixpoint is_in_global (l: list (prod (prod glabel gsort) global)) (lbl: llabel): bool :=
+Fixpoint is_in_global (l: list (prod (prod label sort) global)) (lbl: label): bool :=
   match l with
     | nil                          => false
     | pair (pair lbl1 s1) g1 :: xs => if eqb lbl1 lbl then true else is_in_global xs lbl
   end.
 
-Definition project_list (l: list (prod (prod glabel gsort) global)) (p: gpart): list (prod (prod llabel gsort) local) :=
+Definition project_list (l: list (prod (prod label sort) global)) (p: part): list (prod (prod label sort) local) :=
   remove_op (map_snd (fun g => projection g p) l).
 
 Lemma next_eq: forall l p, next l p = project_list l p.
@@ -232,7 +232,7 @@ Proof. intros lt1.
        - case_eq lt2; intros.
          + simpl. unfold merge. simpl. exists nil. exists "". right. easy.
          + simpl. unfold merge. simpl. exists nil. exists "". right. easy.
-         + case_eq (local_eq (l_send l l0) (l_send l1 l2)); intros.
+         + case_eq (local_eq (l_send s l) (l_send s0 l0)); intros.
            * unfold merge. rewrite H0. easy.
            * exists nil. exists "". right. unfold merge.
              rewrite H0. easy.
@@ -242,13 +242,13 @@ Proof. intros lt1.
          + simpl. unfold merge. simpl. exists nil. exists "". right. easy.
          + simpl. unfold merge. simpl. exists nil. exists "". right. easy.
          + simpl. unfold merge. simpl. exists nil. exists "". right. easy.
-         + case_eq (local_eq (l_recv l l0) (l_recv l1 l2)); intros.
+         + case_eq (local_eq (l_recv s l) (l_recv s0 l0)); intros.
            * unfold merge. rewrite H0. easy.
-           * case_eq (eqb l l1); intros.
-             ** exists (l0 ++ l2). exists l. left. unfold merge.
+           * case_eq (eqb s s0); intros.
+             ** exists (l ++ l0). exists s. left. unfold merge.
                 rewrite H0, H1.
                 easy.
-             ** exists nil. exists l. right.
+             ** exists nil. exists s. right.
                 unfold merge. rewrite H0, H1. easy.
          + simpl. unfold merge. simpl. exists nil. exists "". right. easy.
        - case_eq lt2; intros.
@@ -321,7 +321,7 @@ Proof. intros G.
        - intros p q.
          exists l. intro H.
          simpl in H.
-         case_eq(andb (negb (g =? g0)) (g =? p)); intros.
+         case_eq(andb (negb (s =? s0)) (s =? p)); intros.
          rewrite H0 in H.
          rewrite next_eq in H.
          inversion H.
@@ -331,12 +331,12 @@ Proof. intros G.
          rewrite eqb_eq in H1.
          subst. left. easy.
          rewrite H0 in H.
-         case_eq(andb (negb (g =? g0)) (g0 =? p)); intros.
+         case_eq(andb (negb (s =? s0)) (s0 =? p)); intros.
          rewrite H1 in H.
          rewrite next_eq in H.
          easy.
          rewrite H1 in H.
-         case_eq(andb (negb (g =? g0)) (andb (negb (g =? p)) (negb (g0 =? p)))); intros.
+         case_eq(andb (negb (s =? s0)) (andb (negb (s =? p)) (negb (s0 =? p)))); intros.
          rewrite H2 in H.
          rewrite next_eq in H.
          right. easy.

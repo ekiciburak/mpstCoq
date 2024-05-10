@@ -1,26 +1,19 @@
-From MPSTCoq Require Export src.unscoped.
+From MPSTCoq Require Export src.unscoped src.expressions src.processes.
 Require Import List String.
 Open Scope string_scope.
 
-Definition gpart := string.
-Definition glabel := string.
 
-Inductive gsort: Type :=
-  | gint : gsort
-  | gnat : gsort 
-  | gbool: gsort.
-
-Definition subsort (s1 s2: gsort): bool :=
+Definition subsort (s1 s2: sort): bool :=
   match pair s1 s2 with
-    | pair gnat gint => true
+    | pair snat sint => true
     | _              => false
   end.
 
-Definition gsort_eq (gs1 gs2: gsort): bool :=
+Definition sort_eq (gs1 gs2: sort): bool :=
   match pair gs1 gs2 with
-    | pair gint gint   => true
-    | pair gnat gnat   => true
-    | pair gbool gbool => true
+    | pair sint sint   => true
+(*     | pair snat snat   => true *)
+    | pair sbool sbool => true
     | _                => false 
   end.
 
@@ -28,13 +21,13 @@ Section global.
 Inductive global  : Type :=
   | g_var : ( fin ) -> global 
   | g_end : global 
-  | g_send : ( gpart   ) -> ( gpart   ) -> ( list (prod (prod (glabel  ) (gsort  )) (global  )) ) -> global 
+  | g_send : ( part   ) -> ( part   ) -> ( list (prod (prod (label  ) (sort  )) (global  )) ) -> global 
   | g_rec : ( global   ) -> global .
 
 Lemma congr_g_end  : g_end  = g_end  .
 Proof. congruence. Qed.
 
-Lemma congr_g_send  { s0 : gpart   } { s1 : gpart   } { s2 : list (prod (prod (glabel  ) (gsort  )) (global  )) } { t0 : gpart   } { t1 : gpart   } { t2 : list (prod (prod (glabel  ) (gsort  )) (global  )) } (H1 : s0 = t0) (H2 : s1 = t1) (H3 : s2 = t2) : g_send  s0 s1 s2 = g_send  t0 t1 t2 .
+Lemma congr_g_send  { s0 : part   } { s1 : part   } { s2 : list (prod (prod (label  ) (sort  )) (global  )) } { t0 : part   } { t1 : part   } { t2 : list (prod (prod (label  ) (sort  )) (global  )) } (H1 : s0 = t0) (H2 : s1 = t1) (H3 : s2 = t2) : g_send  s0 s1 s2 = g_send  t0 t1 t2 .
 Proof. congruence. Qed.
 
 Lemma congr_g_rec  { s0 : global   } { t0 : global   } (H1 : s0 = t0) : g_rec  s0 = g_rec  t0 .
@@ -75,7 +68,7 @@ Fixpoint unfold_grec (s: global): global :=
     | _            => s
   end.
 
-Let gt := g_rec (g_send "p" "q" (cons (pair (pair "x" gint) (g_var 0)) nil)).
+Let gt := g_rec (g_send "p" "q" (cons (pair (pair "x" sint) (g_var 0)) nil)).
 Print gt.
 Compute unfold_grec gt.
 

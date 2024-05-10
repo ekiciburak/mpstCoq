@@ -1,22 +1,23 @@
-From MPSTCoq Require Import src.expressions src.processes src.global src.local src.projection.
+From MPSTCoq Require Import src.unscoped src.expressions src.processes src.global src.local src.projection.
 Require Import List String Datatypes ZArith Relations.
 Open Scope list_scope.
+From mathcomp Require Import ssreflect.seq.
 
 Inductive ctx: Type :=
   | empty: ctx
-  | consS: string -> gsort -> ctx -> ctx
-  | consT: fin    -> local -> ctx -> ctx.
+  | consS: fin -> expressions.sort -> ctx -> ctx
+  | consT: fin -> local -> ctx -> ctx.
 
-Definition extendS (m: ctx) (s: string) (t: gsort) :=
+Definition extendS (m: ctx) (s: fin) (t: expressions.sort) :=
   consS s t m.
 
 Definition extendT (m: ctx) (s: fin) (t: local) :=
   consT s t m.
 
-Fixpoint lookupS (m: ctx) (s: string): option gsort :=
+Fixpoint lookupS (m: ctx) (s: fin): option expressions.sort :=
   match m with
     | empty          => None
-    | consS s' t' xs => if eqb s s' then Some t' else lookupS xs s
+    | consS s' t' xs => if Nat.eqb s s' then Some t' else lookupS xs s
     | consT s' t' xs => lookupS xs s
   end.
 
@@ -27,13 +28,13 @@ Fixpoint lookupT (m: ctx) (s: fin): option local :=
     | consS s' t' xs => lookupT xs s
   end.
 
-(* Fixpoint typ_expr (m: ctx) (e: expr): option gsort :=
+(* Fixpoint typ_expr (m: ctx) (e: expr): option expressions.sort :=
   match e with
     | e_var x   => lookupS m x
     | e_val v   => 
       match v with
-        | tint i  => Some gint
-        | tbool b => Some gbool
+        | vint i  => Some sint
+        | vbool b => Some sbool
       end
     | e_succ e1 => 
       let se1 := typ_expr m e1 in
@@ -50,18 +51,65 @@ Fixpoint lookupT (m: ctx) (s: fin): option local :=
     | e_not e1 => 
       let se1 := typ_expr m e1 in
       match se1 with
-        | Some goobl => Some gbool
+        | Some goobl => Some sbool
         | _          => None
       end
     | e_gt e1 e2 => 
       let se1 := typ_expr m e1 in
       let se2 := typ_expr m e2 in
       match pair se1 se2 with
-        | pair (Some gint) (Some gint) => Some gint
+        | pair (Some sint) (Some sint) => Some sbool
         | _                            => None
       end
+    | e_plus e1 e2 => 
+      let se1 := typ_expr m e1 in
+      let se2 := typ_expr m e2 in
+      match pair se1 se2 with
+        | pair (Some sint) (Some sint) => Some sint
+        | _                            => None
+      end
+  end. *)
+
+Inductive typ_expr: fin -> ctx -> expr -> sort -> Prop :=
+  | sc_var : forall em c s t, Some t = lookupS c s ->
+                              typ_expr em c (e_var s) t
+  | sc_vali: forall em c i, typ_expr em c (e_val (vint i)) sint
+  | sc_valb: forall em c b, typ_expr em c (e_val (vbool b)) sbool
+  | sc_succ: forall em c e, typ_expr em c e sint ->
+                            typ_expr em c (e_succ e) sint
+  | sc_neg : forall em c e, typ_expr em c e sint ->
+                            typ_expr em c (e_neg e) sint
+  | sc_not : forall em c e, typ_expr em c e sbool ->
+                            typ_expr em c (e_not e) sbool
+  | sc_gt  : forall em c e1 e2, typ_expr em c e1 sint ->
+                                typ_expr em c e2 sint ->
+                                typ_expr em c (e_gt e1 e2) sbool
+  | sc_plus: forall em c e1 e2, typ_expr em c e1 sint ->
+                                typ_expr em c e2 sint ->
+                                typ_expr em c (e_plus e1 e2) sint.
+
+Fixpoint matchSel (l: label) (xs: list(label*(expressions.sort)*local)%type): option ((expressions.sort)*local)%type :=
+  match xs with
+    | nil           => None
+    | (lbl,s,t)::ys => if eqb l lbl then Some(s,t) else matchSel l ys
   end.
 
+Inductive typ_proc: fin -> fin -> ctx -> process -> local -> Prop :=
+  | tc_inact: forall m em c, typ_proc m em c (p_inact) (l_end)
+  | tc_var  : forall m em c s t, Some t = lookupT c s ->
+                                 typ_proc m em c (p_var s) t
+  | tc_mu   : forall m em c p t, let c' := extendT c m t in
+                                 typ_proc (S m) em c' p t ->
+                                 typ_proc m em c (p_rec p) t
+  | tc_recv : forall m em c p L ST P T,
+                     List.Forall (fun u => typ_proc m (S em) (extendS c em (fst u)) (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
+                     typ_proc m em c (p_recv p (zip (zip L ST) P)) (l_recv p (zip (zip L ST) T))
+  | tc_send: forall m em c p l e P xs S T, Some(S,T) = matchSel l xs ->
+                                           typ_expr em c e S ->
+                                           typ_proc m em c P T ->
+                                           typ_proc m em c (p_send p l e P) (l_send p xs).
+
+(*
 Fixpoint typ_proc (m: ctx) (p: process): option local :=
   match p with
     | p_inact         => Some l_end
@@ -112,13 +160,14 @@ Fixpoint typ_proc (m: ctx) (p: process): option local :=
       end
   end.
  *)
-Fixpoint step_global_peq (l: list (prod (prod label gsort) global)) (lbl: label): option global :=
+
+Fixpoint step_global_peq (l: list (prod (prod label sort) global)) (lbl: label): option global :=
   match l with
     | nil                          => None
     | pair (pair lbl1 s1) g1 :: xs => if eqb lbl1 lbl then Some g1 else step_global_peq xs lbl
   end.
 
-Fixpoint gt_step (g: global) (p q: part) (lbl: glabel): option global :=
+Fixpoint gt_step (g: global) (p q: part) (lbl: label): option global :=
   match g with
     | g_send a b l =>
       if andb (eqb p a) (eqb q b) then step_global_peq l lbl
@@ -136,21 +185,17 @@ Fixpoint gt_step (g: global) (p q: part) (lbl: glabel): option global :=
           end
         in Some (g_send a b (next l))
       else None
-(*     | g_rec g1 => gt_step (subst_global ((g_rec g1) .: g_var) g1) p q lbl *)
+    | g_rec g1 => Some (subst_global ((g_rec g1) .: g_var) g1)
     | _        => None
   end.
 
-Print Forall.
-
-From mathcomp Require Import all_ssreflect. 
-
-Inductive gt_stepI: part -> part -> glabel -> global -> global -> Prop := 
+(* Inductive gt_stepI: part -> part -> label -> global -> global -> Prop := 
   | gt_sendE_m : forall a b p q lbl1 lbl2 s x xs,
                  lbl1 = lbl2 ->
                  a = p ->
                  b = q ->
                  gt_stepI p q lbl2 (g_send a b ((pair (pair lbl1 s) x) :: xs)) x
-  | gt_sendE_nm: forall a b p q lbl1 (xs: seq (glabel * gsort * global)) (ys: seq (glabel * gsort * global)),
+  | gt_sendE_nm: forall a b p q lbl1 (xs: seq (label * sort * global)) (ys: seq (label * sort * global)),
                  a <> p ->
                  b <> q ->
                  a <> q ->
@@ -159,7 +204,8 @@ Inductive gt_stepI: part -> part -> glabel -> global -> global -> Prop :=
                  Forall (fun u => gt_stepI p q lbl1 u.1 u.2) (zip (map snd xs) (map snd ys)) ->
                  gt_stepI p q lbl1 (g_send a b xs) (g_send a b ys)
   | gt_mu      : forall p q lbl g,
-                 gt_stepI p q lbl (g_rec g) (subst_global ((g_rec g) .: g_var) g).
+                 gt_stepI p q lbl (g_rec g) (subst_global ((g_rec g) .: g_var) g). *)
+
 
 Lemma _46: forall G p q lbl,
            exists l,

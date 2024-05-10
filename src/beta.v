@@ -5,9 +5,8 @@ Import ListNotations.
 
 Inductive betaP: relation session :=
   | r_comm  : forall p q xs l e Q M,
-              let v := eval_expr e in
               betaP ((p <-- p_recv q xs) ||| (q <-- p_send p l e Q) ||| M)
-                    ((p <-- subst_expr_proc (p_recv q xs) l v) ||| (q <-- Q) ||| M)
+                    ((p <-- subst_expr_proc (p_recv q xs) l e) ||| (q <-- Q) ||| M)
   | rt_ite  : forall p P Q M,
               betaP ((p <-- p_ite (e_val (vbool true)) P Q) ||| M) ((p <-- P) ||| M)
   | rf_ite  : forall p P Q M,
@@ -40,7 +39,7 @@ Definition MS: session := ("Alice" <-- PAlice) ||| ("Bob" <-- PBob) ||| ("Carol"
 
 Definition MS': session := ("Alice" <-- p_inact) ||| ("Bob" <-- p_inact) ||| ("Carol" <-- p_inact).
 
-(* Eval compute in (eval_expr (e_plus (e_val (vint 100)) (e_val (vint 5)))). *)
+Eval compute in (eval_expr (e_plus (e_val (vint 100)) (e_val (vint 5)))).
 
 Example redMS: beta_multistep MS MS'.
 Proof. unfold beta_multistep, MS, MS', PAlice, PBob.
@@ -70,7 +69,7 @@ Proof. unfold beta_multistep, MS, MS', PAlice, PBob.
        apply multi_step with
        (y := ((("Alice" <-- p_inact) |||
               ("Carol" <-- p_inact)) ||| ("Bob" <-- p_inact))
-       ).
+       ). simpl.
        apply r_comm.
        apply multi_refl.
 Qed.

@@ -1,26 +1,24 @@
-From MPSTCoq Require Export src.unscoped src.global.
+From MPSTCoq Require Export src.unscoped src.expressions src.processes src.global.
 
 Require Import List String.
 Open Scope list_scope.
 
-Definition lpart := string.
-Definition llabel := string.
 
 Section local.
 Inductive local  : Type :=
   | l_var : ( fin ) -> local 
   | l_end : local 
-  | l_send : ( lpart   ) -> ( list (prod (prod (llabel  ) (gsort  )) (local  )) ) -> local 
-  | l_recv : ( lpart   ) -> ( list (prod (prod (llabel  ) (gsort  )) (local  )) ) -> local 
+  | l_send : ( part   ) -> ( list (prod (prod (label  ) (sort  )) (local  )) ) -> local 
+  | l_recv : ( part   ) -> ( list (prod (prod (label  ) (sort  )) (local  )) ) -> local 
   | l_rec : ( local   ) -> local .
 
 Lemma congr_l_end  : l_end  = l_end  .
 Proof. congruence. Qed.
 
-Lemma congr_l_send  { s0 : lpart   } { s1 : list (prod (prod (llabel  ) (gsort  )) (local  )) } { t0 : lpart   } { t1 : list (prod (prod (llabel  ) (gsort  )) (local  )) } (H1 : s0 = t0) (H2 : s1 = t1) : l_send  s0 s1 = l_send  t0 t1 .
+Lemma congr_l_send  { s0 : part   } { s1 : list (prod (prod (label  ) (sort  )) (local  )) } { t0 : part   } { t1 : list (prod (prod (label  ) (sort  )) (local  )) } (H1 : s0 = t0) (H2 : s1 = t1) : l_send  s0 s1 = l_send  t0 t1 .
 Proof. congruence. Qed.
 
-Lemma congr_l_recv  { s0 : lpart   } { s1 : list (prod (prod (llabel  ) (gsort  )) (local  )) } { t0 : lpart   } { t1 : list (prod (prod (llabel  ) (gsort  )) (local  )) } (H1 : s0 = t0) (H2 : s1 = t1) : l_recv  s0 s1 = l_recv  t0 t1 .
+Lemma congr_l_recv  { s0 : part   } { s1 : list (prod (prod (label  ) (sort  )) (local  )) } { t0 : part   } { t1 : list (prod (prod (label  ) (sort  )) (local  )) } (H1 : s0 = t0) (H2 : s1 = t1) : l_recv  s0 s1 = l_recv  t0 t1 .
 Proof. congruence. Qed.
 
 Lemma congr_l_rec  { s0 : local   } { t0 : local   } (H1 : s0 = t0) : l_rec  s0 = l_rec  t0 .
@@ -58,17 +56,17 @@ Fixpoint local_eq (l1 l2: local): bool :=
       let fix next la lb :=
         match pair la lb with
           | pair ((pair (pair lbl1 s1) lc1) :: xs1) ((pair (pair lbl2 s2) lc2) :: xs2) =>
-            if (andb (andb (eqb lbl1 lbl2) (gsort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
+            if (andb (andb (eqb lbl1 lbl2) (sort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
             else false
           | pair nil nil => true
           | _            => false
         end
-      in (andb (eqb p1 p2) (next la lb))
+      in ((eqb p1 p2) && (next la lb))
     | pair (l_recv p1 la) (l_recv p2 lb) =>
       let fix next la lb :=
         match pair la lb with
           | pair ((pair (pair lbl1 s1) lc1) :: xs1) ((pair (pair lbl2 s2) lc2) :: xs2) =>
-            if (andb (andb (eqb lbl1 lbl2) (gsort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
+            if (andb (andb (eqb lbl1 lbl2) (sort_eq s1 s2)) (local_eq lc1 lc2)) then next xs1 xs2
             else false
           | pair nil nil => true
           | _            => false
