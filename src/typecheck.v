@@ -28,7 +28,7 @@ Fixpoint lookupT (m: ctx) (s: fin): option local :=
     | consS s' t' xs => lookupT xs s
   end.
 
-(* Fixpoint typ_expr (m: ctx) (e: expr): option expressions.sort :=
+Fixpoint infr_expr (m: ctx) (e: expr): option expressions.sort :=
   match e with
     | e_var x   => lookupS m x
     | e_val v   => 
@@ -37,38 +37,38 @@ Fixpoint lookupT (m: ctx) (s: fin): option local :=
         | vbool b => Some sbool
       end
     | e_succ e1 => 
-      let se1 := typ_expr m e1 in
+      let se1 := infr_expr m e1 in
       match se1 with
         | Some gint => Some gint
         | _         => None
       end
     | e_neg e1 => 
-      let se1 := typ_expr m e1 in
+      let se1 := infr_expr m e1 in
       match se1 with
         | Some gint => Some gint
         | _         => None
       end
     | e_not e1 => 
-      let se1 := typ_expr m e1 in
+      let se1 := infr_expr m e1 in
       match se1 with
         | Some goobl => Some sbool
         | _          => None
       end
     | e_gt e1 e2 => 
-      let se1 := typ_expr m e1 in
-      let se2 := typ_expr m e2 in
+      let se1 := infr_expr m e1 in
+      let se2 := infr_expr m e2 in
       match pair se1 se2 with
         | pair (Some sint) (Some sint) => Some sbool
         | _                            => None
       end
     | e_plus e1 e2 => 
-      let se1 := typ_expr m e1 in
-      let se2 := typ_expr m e2 in
+      let se1 := infr_expr m e1 in
+      let se2 := infr_expr m e2 in
       match pair se1 se2 with
         | pair (Some sint) (Some sint) => Some sint
         | _                            => None
       end
-  end. *)
+  end.
 
 Inductive typ_expr: fin -> ctx -> expr -> sort -> Prop :=
   | sc_var : forall em c s t, Some t = lookupS c s ->
@@ -109,14 +109,13 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> local -> Prop :=
                                            typ_proc m em c P T ->
                                            typ_proc m em c (p_send p l e P) (l_send p xs).
 
-(*
-Fixpoint typ_proc (m: ctx) (p: process): option local :=
+Fixpoint infr_proc (m: ctx) (p: process) (u: fin) (n: fin): option local :=
   match p with
     | p_inact         => Some l_end
     | p_var x         => lookupT m x
     | p_send p l e P  => 
-      let ste := typ_expr m e in
-      let stP := typ_proc m P in
+      let ste := infr_expr m e in
+      let stP := infr_proc m P u n in
       match pair ste stP with
         | pair (Some te) (Some tP) => Some (l_send p (cons (pair (pair l te) tP) nil))
         | _                        => None
@@ -124,11 +123,11 @@ Fixpoint typ_proc (m: ctx) (p: process): option local :=
     | p_recv p l      =>
       let fix next l :=
         match l with
-          | pair (pair lbl (e_var x)) P :: xs =>
-            let ste := lookupS m x in
+          | pair (pair lbl _) P :: xs =>
+            let ste := lookupS m n in
             match ste with
               | Some te => 
-                let stP := typ_proc (extendS m x te) P in
+                let stP := infr_proc (extendS m n te) P u (S n) in
                 match stP with
                   | Some tP => pair (pair lbl te) tP :: next xs
                   | None    => nil
@@ -139,9 +138,9 @@ Fixpoint typ_proc (m: ctx) (p: process): option local :=
         end
       in Some (l_recv p (next l))
     | p_ite e P1 P2   =>
-      let ste  := typ_expr m e in
-      let stP1 := typ_proc m P1 in
-      let stP2 := typ_proc m P2 in
+      let ste  := infr_expr m e in
+      let stP1 := infr_proc m P1 u n in
+      let stP2 := infr_proc m P2 u n in
       match pair (pair ste stP1) stP2 with
         | pair (pair (Some gbool) (Some tP1)) (Some tP2) =>
           if local_eq tP1 tP2 then Some tP1 else None 
@@ -151,7 +150,7 @@ Fixpoint typ_proc (m: ctx) (p: process): option local :=
       let stb := lookupT m 0 in
       match stb with
         | Some tb => 
-          let stP := typ_proc (extendT m 0 tb) P in
+          let stP := infr_proc (extendT m u tb) P (S u) n in
           match stP with
             | Some tP => Some tP
             | None    => None
@@ -159,7 +158,6 @@ Fixpoint typ_proc (m: ctx) (p: process): option local :=
         | None    => None 
       end
   end.
- *)
 
 Fixpoint step_global_peq (l: list (prod (prod label sort) global)) (lbl: label): option global :=
   match l with
