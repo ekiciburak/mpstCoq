@@ -70,23 +70,23 @@ Fixpoint infr_expr (m: ctx) (e: expr): option expressions.sort :=
       end
   end.
 
-Inductive typ_expr: fin -> ctx -> expr -> sort -> Prop :=
-  | sc_var : forall em c s t, Some t = lookupS c s ->
-                              typ_expr em c (e_var s) t
-  | sc_vali: forall em c i, typ_expr em c (e_val (vint i)) sint
-  | sc_valb: forall em c b, typ_expr em c (e_val (vbool b)) sbool
-  | sc_succ: forall em c e, typ_expr em c e sint ->
-                            typ_expr em c (e_succ e) sint
-  | sc_neg : forall em c e, typ_expr em c e sint ->
-                            typ_expr em c (e_neg e) sint
-  | sc_not : forall em c e, typ_expr em c e sbool ->
-                            typ_expr em c (e_not e) sbool
-  | sc_gt  : forall em c e1 e2, typ_expr em c e1 sint ->
-                                typ_expr em c e2 sint ->
-                                typ_expr em c (e_gt e1 e2) sbool
-  | sc_plus: forall em c e1 e2, typ_expr em c e1 sint ->
-                                typ_expr em c e2 sint ->
-                                typ_expr em c (e_plus e1 e2) sint.
+Inductive typ_expr: ctx -> expr -> sort -> Prop :=
+  | sc_var : forall c s t, Some t = lookupS c s ->
+                              typ_expr c (e_var s) t
+  | sc_vali: forall c i, typ_expr c (e_val (vint i)) sint
+  | sc_valb: forall c b, typ_expr c (e_val (vbool b)) sbool
+  | sc_succ: forall c e, typ_expr c e sint ->
+                         typ_expr c (e_succ e) sint
+  | sc_neg : forall c e, typ_expr c e sint ->
+                         typ_expr c (e_neg e) sint
+  | sc_not : forall c e, typ_expr c e sbool ->
+                         typ_expr c (e_not e) sbool
+  | sc_gt  : forall c e1 e2, typ_expr c e1 sint ->
+                             typ_expr c e2 sint ->
+                             typ_expr c (e_gt e1 e2) sbool
+  | sc_plus: forall c e1 e2, typ_expr c e1 sint ->
+                             typ_expr c e2 sint ->
+                             typ_expr c (e_plus e1 e2) sint.
 
 Fixpoint matchSel (l: label) (xs: list(label*(expressions.sort)*local)%type): option ((expressions.sort)*local)%type :=
   match xs with
@@ -105,7 +105,7 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> local -> Prop :=
                      List.Forall (fun u => typ_proc m (S em) (extendS c em (fst u)) (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
                      typ_proc m em c (p_recv p (zip (zip L ST) P)) (l_recv p (zip (zip L ST) T))
   | tc_send: forall m em c p l e P xs S T, Some(S,T) = matchSel l xs ->
-                                           typ_expr em c e S ->
+                                           typ_expr c e S ->
                                            typ_proc m em c P T ->
                                            typ_proc m em c (p_send p l e P) (l_send p xs).
 
@@ -219,7 +219,11 @@ Proof. intros.
        subst. simpl.
        rewrite !eqb_refl. simpl.
        easy.
-       admit.
+       induction G; intros.
+       + simpl in *. easy.
+       + simpl in *. easy.
+       + simpl in *. admit.
+       + simpl in *. admit.
 Admitted.
 
 
