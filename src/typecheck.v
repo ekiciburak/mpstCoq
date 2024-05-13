@@ -2,6 +2,7 @@ From MPSTCoq Require Import src.unscoped src.expressions src.processes src.globa
 Require Import List String Datatypes ZArith Relations.
 Open Scope list_scope.
 From mathcomp Require Import ssreflect.seq.
+Import ListNotations.
 
 Inductive ctx: Type :=
   | empty: ctx
@@ -123,20 +124,16 @@ Fixpoint infr_proc (m: ctx) (p: process) (u: fin) (n: fin): option local :=
     | p_recv p l      =>
       let fix next l :=
         match l with
-          | pair (pair lbl _) P :: xs =>
-            let ste := lookupS m n in
-            match ste with
-              | Some te => 
-                let stP := infr_proc (extendS m n te) P u (S n) in
-                match stP with
-                  | Some tP => pair (pair lbl te) tP :: next xs
-                  | None    => nil
-                end
-              | None => nil 
+          | pair (pair lbl te) P :: xs =>
+            let stP := infr_proc (extendS m n te) P u (S n) in
+            match stP with
+              | Some tP => pair (pair lbl te) tP :: next xs
+              | None    => nil
             end
           | _   => nil
         end
-      in Some (l_recv p (next l))
+      in (let k := (next l) in 
+         (if isNil k then None else Some (l_recv p k)))
     | p_ite e P1 P2   =>
       let ste  := infr_expr m e in
       let stP1 := infr_proc m P1 u n in
@@ -159,6 +156,11 @@ Fixpoint infr_proc (m: ctx) (p: process) (u: fin) (n: fin): option local :=
       end
   end.
 
+(* Definition st := p_recv "q" [("l1", sint, 
+                             (p_recv "q" [("l2", sbool, 
+                                          (p_send "p" "l3" (e_plus (e_var 0) (e_val (vint 10))) p_inact))]))].
+Eval compute in (infr_proc empty st 0 0).
+ *)
 Fixpoint step_global_peq (l: list (prod (prod label sort) global)) (lbl: label): option global :=
   match l with
     | nil                          => None
