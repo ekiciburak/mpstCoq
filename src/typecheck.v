@@ -146,7 +146,7 @@ Fixpoint infr_proc (m: ctx) (p: process) (u: fin) (n: fin): option local :=
     | p_rec tb P         => 
       let stP := infr_proc (extendT m u tb) P (S u) n in
       match stP with
-        | Some tP => Some tP
+        | Some tP => if local_eq tP tb then Some tP else None
         | None    => None
       end
   end.
@@ -155,7 +155,7 @@ Fixpoint infr_proc (m: ctx) (p: process) (u: fin) (n: fin): option local :=
 Definition st := p_recv "q" [("l1", sint, 
                              (p_recv "q" [("l2", sbool, 
                                           (p_send "p" "l3" (e_plus (e_var 0) (e_val (vint 10))) 
-                                          (p_recv "q" [("l2", sbool, 
+                                          (p_recv "q" [("l2", sint, 
                                           (p_send "p" "l3" (e_plus (e_var 2) (e_val (vint 10))) p_inact))])))]))].
 Eval compute in (infr_proc empty st 0 0).
 *)
