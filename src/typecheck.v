@@ -101,7 +101,7 @@ Inductive typ_proc: fin -> fin -> ctx -> process -> local -> Prop :=
                                  typ_proc m em c (p_var s) t
   | tc_mu   : forall m em c p t, let c' := extendT c m t in
                                  typ_proc (S m) em c' p t ->
-                                 typ_proc m em c (p_rec p) t
+                                 typ_proc m em c (p_rec t p) t
   | tc_recv : forall m em c p L ST P T,
                      List.Forall (fun u => typ_proc m (S em) (extendS c em (fst u)) (fst (snd u)) (snd (snd u))) (zip ST (zip P T)) ->
                      typ_proc m em c (p_recv p (zip (zip L ST) P)) (l_recv p (zip (zip L ST) T))
@@ -133,7 +133,7 @@ Fixpoint infr_proc (m: ctx) (p: process) (u: fin) (n: fin): option local :=
           | _   => nil
         end
       in (let k := (next l) in 
-         (if isNil k then None else Some (l_recv p k)))
+              if isNil k then None else Some (l_recv p k))
     | p_ite e P1 P2   =>
       let ste  := infr_expr m e in
       let stP1 := infr_proc m P1 u n in
@@ -143,24 +143,23 @@ Fixpoint infr_proc (m: ctx) (p: process) (u: fin) (n: fin): option local :=
           if local_eq tP1 tP2 then Some tP1 else None 
         | _                                                => None
       end
-    | p_rec P         => 
-      let stb := lookupT m 0 in
-      match stb with
-        | Some tb => 
-          let stP := infr_proc (extendT m u tb) P (S u) n in
-          match stP with
-            | Some tP => Some tP
-            | None    => None
-          end
-        | None    => None 
+    | p_rec tb P         => 
+      let stP := infr_proc (extendT m u tb) P (S u) n in
+      match stP with
+        | Some tP => Some tP
+        | None    => None
       end
   end.
 
-(* Definition st := p_recv "q" [("l1", sint, 
+(*
+Definition st := p_recv "q" [("l1", sint, 
                              (p_recv "q" [("l2", sbool, 
-                                          (p_send "p" "l3" (e_plus (e_var 0) (e_val (vint 10))) p_inact))]))].
+                                          (p_send "p" "l3" (e_plus (e_var 0) (e_val (vint 10))) 
+                                          (p_recv "q" [("l2", sbool, 
+                                          (p_send "p" "l3" (e_plus (e_var 2) (e_val (vint 10))) p_inact))])))]))].
 Eval compute in (infr_proc empty st 0 0).
- *)
+*)
+
 Fixpoint step_global_peq (l: list (prod (prod label sort) global)) (lbl: label): option global :=
   match l with
     | nil                          => None

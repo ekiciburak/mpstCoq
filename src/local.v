@@ -1,4 +1,4 @@
-From MPSTCoq Require Export src.unscoped src.expressions src.processes src.global.
+From MPSTCoq Require Export src.unscoped src.expressions src.global.
 
 Require Import List String.
 Open Scope list_scope.

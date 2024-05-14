@@ -1,4 +1,4 @@
-From MPSTCoq Require Export src.unscoped src.expressions src.processes.
+From MPSTCoq Require Export src.unscoped src.expressions src.processes src.global.
 Require Import List String Relations.
 Require Import List String Relations ZArith.
 Require Import Setoid Morphisms Coq.Program.Basics.
@@ -14,7 +14,7 @@ Notation "p '<--' P"   :=  (s_ind p P) (at level 50, no associativity).
 Notation "s1 '|||' s2" :=  (s_par s1 s2) (at level 50, no associativity).
 
 Inductive scong: relation session :=
-  | sc_rec  : forall p P M, scong (p <-- (p_rec P) ||| M) (p <-- (subst_process ((p_rec P) .: p_var) P) ||| M)
+  | sc_rec  : forall p l P M, scong (p <-- (p_rec l P) ||| M) (p <-- (subst_process ((p_rec l P) .: p_var) P) ||| M)
 (*   | sc_multi: forall p P Q M, pcong P Q -> scong (p <-- P ||| M) (p <-- Q ||| M)  *)
   | sc_par1 : forall p M, scong (p <-- p_inact ||| M) M
   | sc_par2 : forall M M', scong (M ||| M') (M' ||| M)

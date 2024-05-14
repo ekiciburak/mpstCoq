@@ -1,7 +1,9 @@
-From MPSTCoq Require Export src.unscoped src.expressions src.processes.
+From MPSTCoq Require Export src.unscoped src.expressions.
 Require Import List String.
 Open Scope string_scope.
 
+Notation label := string.
+Notation part  := string.
 
 Definition subsort (s1 s2: sort): bool :=
   match pair s1 s2 with
